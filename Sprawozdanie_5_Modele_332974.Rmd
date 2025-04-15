@@ -1,0 +1,767 @@
+---
+title: "Sprawozdanie 5"
+author: "Katarzyna Botulińska"
+date: "2025-01-31"
+output:
+  pdf_document:
+    fig_caption: true
+  html_document:
+    df_print: paged
+  word_document: default
+lang: "pl-PL"
+---
+
+```{r setup, include=FALSE, warning=FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message = FALSE}
+options(scipen=999)
+library(knitr)
+library(MASS)
+library(car)
+library(leaps)
+library(HH)
+library(shiny)
+
+```
+
+\tableofcontents
+
+\newpage
+
+
+
+
+
+
+
+
+
+## zad 1a
+
+Podgląd na plik 'tabela1_6.txt'. 
+
+```{r, echo = FALSE}
+file <- read.table("C:/Users/katar/OneDrive/Pulpit/Modele/Listy/CH06PR15.txt")
+colnames(file) <- c("Age", "Sickness", "Anxiety", "Satisfaction") 
+knitr::kable(head(file,5), caption = "Plik z danymi")
+```
+ 
+
+```{r, fig.width = 6, fig.height = 5, echo = FALSE}
+reg_a <- lm(Satisfaction ~ Age+Sickness+Anxiety, file)
+#anova(reg_a)
+
+intercept_a = round(reg_a$coefficients[1],4)
+slope1_a = round(reg_a$coefficients[2],4)
+slope2_a = round(reg_a$coefficients[3],4)
+slope3_a = round(reg_a$coefficients[4],4)
+
+
+Y_hat_a <- intercept_a + slope1_a*(file$Age) + slope2_a*(file$Sickness) + slope3_a*(file$Anxiety)
+matrix_pl <- model.matrix(reg_a)
+beta_hat <- solve(t(matrix_pl) %*% matrix_pl) %*% t(matrix_pl) %*% file$Satisfaction
+
+SSE = sum(((file$Satisfaction) - Y_hat_a)^2)
+SST = sum(((file$Satisfaction) - mean(file$Satisfaction))^2)
+
+R2_a = 1 - SSE/SST
+R2_a_r = summary(reg_a)$r.squared
+
+
+r_results <- c(reg_a$coefficients, R2_a_r)
+teor_results <- c(beta_hat, R2_a)
+
+tabela_a<- data.frame("R" = r_results, "teoretycznie" = teor_results)
+row.names(tabela_a) <- c("b_0", "b_1", "b_2", "b_3","R^2")
+
+knitr::kable(tabela_a, caption="Porównanie wyników obliczonych za pomocą poleceń wbudownaych w R i wzorów teoretycznych")
+```
+
+Równanie regresji: $Y = \hat{\beta_0} + \hat{\beta_1}X_1 + \hat{\beta_2}X_2 + \hat{\beta_3}X_3 + \epsilon$, czyli $Y =$ `r intercept_a` $+$ `r slope1_a`$X_1$ $+$ `r slope2_a`$X_2$ $+$ `r slope3_a`$X_3$. 
+
+Wnioski: Zauwazyć można, ze wartości wspołczynników regresji oraz współczynnika $R^2$ wyliczone teoretycznie i za pomocą wzorów wbudowanych w R dają takie same wyniki.
+
+
+
+
+
+
+
+
+
+
+## zad 1b
+
+
+```{r, fig.width = 6, fig.height = 5, echo = FALSE}
+n <- nrow(file)
+k <- 3 
+
+teor_F_stat <- ((SST - SSE) / k) / (SSE / (n - k - 1))
+teor_p_value <- pf(teor_F_stat, df1 = k, df2 = (n - k - 1), lower.tail = FALSE)
+
+r_F_stat <- summary(reg_a)$fstatistic[1]
+df1 <- summary(reg_a)$fstatistic[2]
+df2 <- summary(reg_a)$fstatistic[3]
+r_p_value <- pf(r_F_stat, df1 = df1, df2 = df2, lower.tail = FALSE)
+
+
+tabela_b <- matrix(c(r_F_stat, teor_F_stat, r_p_value, teor_p_value), nrow =, ncol =2, byrow =TRUE)
+colnames(tabela_b)<- c("R", "teoretycznie")
+row.names(tabela_b) <- c("F-statystyka", "P-wartość")
+
+knitr::kable(tabela_b, caption="Porównanie wyników obliczonych za pomocą poleceń wbudownaych w R i wzorów teoretycznych")
+```
+
+Testowana hipoteza:
+
+$H_0: \beta_1 = \beta_2 = \beta_3 = 0$
+
+$H_1: \beta_i\neq 0$ przynajmniej dla jednego $i$
+
+Statystyka testowa $F = \frac{(SSE(R) - SSE(F)) / (dfE(R) - dfE(F))}{MSE(F)}$
+
+Liczba stopni swobodwy $dfE(R) - dfE(F) = 3$
+
+Wnioski: P-wartość jest mniejsza niż $\alpha = 0.05$, czyli test $F$ jest istotny statystycznie. Wysoka $F-statystyka$ sugeruje, że model ma duży wpływ na zmienność danych. Oznacza to, że odrzucamy $H_0$. Wyciągmay tym samym wniosek, że przyanjmniej jeden z predyktorów (wiek, poziom niepokoj, ciężkość choroby) istotnie wpływa na zmienną zależną (poziom satysfakcji). 
+
+
+
+
+
+
+
+
+
+
+
+
+## zad 1c
+
+$\bullet$ Testowanie hipotezy, że poziom satysfakcji pacjentów nie zależy od wieku
+
+```{r, fig.width = 6, fig.height = 5, echo = FALSE}
+df <- n - k - 1
+
+beta_hat <- reg_a$coefficients["Age"]
+SE <- sqrt(vcov(reg_a)["Age", "Age"]) #summary(reg_a)$coefficients[2,2]
+
+# teoretyccznie
+teor_t_stat <- beta_hat / SE
+teor_p_value <- 2 * pt(abs(teor_t_stat), df = df, lower.tail = FALSE)
+
+#wbudwoane
+r_t_stat <- summary(reg_a)$coefficients["Age", "t value"]
+r_p_value <- summary(reg_a)$coefficients["Age", "Pr(>|t|)"]
+
+
+tabela_c <- data.frame("R" = c(r_t_stat, r_p_value), "teoretycznie" = c(teor_t_stat, teor_p_value))
+row.names(tabela_c) <- c("staytyka t", "p-wartość")
+
+knitr::kable(tabela_c, caption = "Porównanie wyników obliczonych za pomocą poleceń wbudowanych w R i wzorów teoretycznych")
+```
+
+Testowana hipoteza:
+
+$H_0: \beta_1 =  0$
+
+$H_1: \beta_1 \neq 0$ 
+
+Statystyka testowa $t = \frac{\hat{\beta}}{SSE(\beta)}$
+
+Liczba stopni swobodwy $df=$ `r df`
+
+Wnioski: P-wartość jest większa niż $\alpha=0.05$, w związku z tym nie możemy odrzucić hipotezy zerowej. Na podstawie przeprowadzonego testu nie możemy stwierdzić, że poziom satysfkacji nie zależy od wieku.
+
+
+
+$\bullet$ Testowanie hipotezy, że poziom satysfakcji pacjentów nie zależy od ciężkości choroby
+
+```{r, fig.width = 6, fig.height = 5, echo = FALSE}
+beta_hat <- reg_a$coefficients["Sickness"]
+SE <- sqrt(vcov(reg_a)["Sickness", "Sickness"])
+
+# teoretyccznie
+teor_t_stat <- beta_hat / SE
+teor_p_value <- 2 * pt(abs(teor_t_stat), df = df, lower.tail = FALSE)
+
+#wbudwoane
+r_t_stat<- summary(reg_a)$coefficients["Sickness", "t value"]
+r_p_value <- summary(reg_a)$coefficients["Sickness", "Pr(>|t|)"]
+
+tabela_c <- data.frame("R" = c(r_t_stat, r_p_value), "teoretycznie" = c(teor_t_stat, teor_p_value))
+row.names(tabela_c) <- c("staytyka t", "p-wartość")
+
+knitr::kable(tabela_c, caption = "Porównanie wyników obliczonych za pomocą poleceń wbudowanych w R i wzorów teoretycznych")
+```
+
+Testowana hipoteza:
+
+$H_0: \beta_2 =  0$
+
+$H_1: \beta_2 \neq 0$ 
+
+Statystyka testowa $t = \frac{\hat{\beta}}{SSE(\beta)}$
+
+Liczba stopni swobodwy $df=$ `r df`
+
+Wnioski: P-wartość jest większa niż $\alpha=0.05$, w związku z tym nie możemy odrzucić hipotezy zerowej. Na podstawie przeprowadzonego testu nie możemy stwierdzić, że poziom satysfkacji nie zależy od ciężkości choroby.  
+
+\newpage
+
+$\bullet$ Testowanie hipotezy, że poziom satysfakcji pacjentów nie zależy od poiozmu niepokoju
+
+```{r, fig.width = 6, fig.height = 5, echo = FALSE}
+
+beta_hat <- reg_a$coefficients["Anxiety"]
+SE <- sqrt(vcov(reg_a)["Anxiety", "Anxiety"])
+
+# teoretyccznie
+teor_t_stat <- beta_hat / SE
+teor_p_value <- 2 * pt(abs(teor_t_stat), df = df, lower.tail = FALSE)
+
+#wbudwoane
+r_t_stat<- summary(reg_a)$coefficients["Anxiety", "t value"]
+r_p_value <- summary(reg_a)$coefficients["Anxiety", "Pr(>|t|)"]
+
+tabela_c <- data.frame("R" = c(r_t_stat, r_p_value), "teoretycznie" = c(teor_t_stat, teor_p_value))
+row.names(tabela_c) <- c("staytyka t", "p-wartość")
+
+knitr::kable(tabela_c, caption = "Porównanie wyników obliczonych za pomocą poleceń wbudowanych w R i wzorów teoretycznych")
+```
+
+Testowana hipoteza:
+
+$H_0: \beta_3 =  0$
+
+$H_1: \beta_3 \neq 0$ 
+
+Statystyka testowa $t = \frac{\hat{\beta}}{SSE(\beta)}$
+
+Liczba stopni swobodwy $df=$ `r df`
+
+Wnioski: P-wartość jest mniejsza niż $\alpha=0.05$, w związku z tym odrzucamy hipotezę zerową. Na podstawie przeprowadzonego testu z dużym prawdopodobieństwem możemy stwierdzić, że poziom satysfkacji pacjentów zależy od poziomu niepokoju.  
+
+
+
+
+
+
+
+
+
+
+
+## zad 1d
+
+
+```{r, fig.width = 6, fig.height = 5, echo = FALSE}
+
+s_slope1_a <- summary(reg_a)$coefficients[2,2]
+s_slope2_a <- summary(reg_a)$coefficients[3,2]
+s_slope3_a <- summary(reg_a)$coefficients[4,2]
+
+
+t_c <- qt(0.975, n-4)
+
+pu_slope1_start <- slope1_a - t_c * s_slope1_a
+pu_slope1_end <- slope1_a + t_c * s_slope1_a
+
+pu_slope2_start <- slope2_a - t_c * s_slope2_a
+pu_slope2_end <- slope2_a + t_c * s_slope2_a
+
+pu_slope3_start  <- slope3_a - t_c * s_slope3_a
+pu_slope3_end <- slope3_a + t_c * s_slope3_a
+
+#summary(reg_a)$coefficients
+```
+ 
+
+$95\%$ przedziały ufności dla współczynnika regresji przy wieku 
+$[$ `r round(pu_slope1_start, 4)`, `r round(pu_slope1_end, 2)`  $]$
+
+$95\%$ przedziały ufności ufnośco dla współczynnika regresji przy ciężkości choroby
+$[$ `r round(pu_slope2_start, 4)`, `r round(pu_slope2_end, 2)`  $]$
+
+$95\%$ przedziały ufności dla współczynnika regresji przy poziomie niepokoju
+$[$ `r round(pu_slope3_start, 4)`, `r round(pu_slope3_end, 2)`  $]$
+ 
+ 
+Wnioski: Związek między tymi wynikami, a wynikami z punktu $c)$ jest bardzo dobrze widoczny. Ponieważ $95\%$ przedziały ufności $\hat{\beta_1}$ oraz $\hat{\beta_2}$ zawierają $0$, a przdział dla $\hat{\beta_3}$ nie zawiera $0$. Dlatego, tylko dla $\hat{\beta_3}$ możemy spokojnie odrzucić $H_0$, a dla pozostałych $\beta$ nie. 
+
+
+
+\newpage
+
+
+## zad 2
+
+```{r, fig.width= 6 , fig.height= 4, echo = FALSE}
+plot(Y_hat_a, 
+     reg_a$residuals, 
+     ylim=c(-0.4, 0.5),
+     xlab = "Satysfakcja",
+     ylab = "Residua",
+     main = "Wykres residuów w zależności od przewidywanej satysfakcji")
+abline(h = 0, col = "green", lty = 1) 
+
+```
+
+```{r, fig.width= 6 , fig.height= 4, echo = FALSE}
+plot(file$Age, 
+     reg_a$residuals, 
+     ylim=c(-0.4, 0.5),
+     xlab = "Wiek",
+     ylab = "Residua",
+     main = "Wykres residuów w zależności od wieku")
+abline(h = 0, col = "green", lty = 1) 
+
+```
+
+```{r,fig.width= 6 , fig.height= 4, echo = FALSE}
+plot(file$Sickness,
+     reg_a$residuals, 
+     ylim=c(-0.4, 0.5),
+     xlab = "Ciężkość choroby",
+     ylab = "Residua",
+     main = "Wykres residuów w zależności od ciężkości choroby")
+abline(h = 0, col = "green", lty = 1) 
+```
+
+```{r, fig.width= 6 , fig.height= 4, echo = FALSE}
+plot(file$Anxiety,
+     reg_a$residuals, 
+     ylim=c(-0.4, 0.5),
+     xlab = "Niepokój",
+     ylab = "Residua",
+     main = "Wykres residuów w zależności od poziomu niepokoju")
+abline(h = 0, col = "green", lty = 1) 
+```
+
+Wnioski: Na wszystkich wykresach punkty są losowo rozrzucone wokół $0$, nie występują żadne nietypowe wzory, ani ekstremalnie odstające wartości. 
+
+\newpage
+
+
+## zad 3
+
+
+```{r, fig.width=6, fig.height=4, echo = FALSE}
+test_res_norm <- shapiro.test(reg_a$residuals)
+value <- test_res_norm$p.value
+stat <- test_res_norm$statistic
+
+qqnorm(reg_a$residuals)
+qqline(reg_a$residuals, col = "blue")
+```
+
+$H_0:$ dane pochodzą z rozkładu normalnego
+
+$H_1:$ dane nie pochodzą z rozkładu normlanego
+
+Wnioski: Wykres residuów jest w przybliżeniu normalny, ponieważ staytsyka  $W=$ `r round(stat,2)` jest bliska $1$, a p-wartość testu Shapiro-Wilka wynosi `r round(value,2)` $>$ $0.05$. W związku z tym nie ma dowodów na istotne odstępstwa od normalności. 
+Wykres kwantylowo-kwantylowy także potwierdza normalność rozkładu, chociaż możemy zauważyć, że "na ogonach" wyniki są bardziej rozproszone. 
+
+
+## zad 4
+
+```{r, echo = FALSE}
+file2 <- read.table("C:/Users/katar/OneDrive/Pulpit/Modele/Listy/csdata.txt")
+colnames(file2) <- c("id", "GPA", "HSM", "HSS", "HSE", "SATM", "SATV", "SEX")
+n <- nrow(file2)
+#SEX 1- mężczyźni, 2-kobiety
+#knitr::kable(head(file2,5), caption = "Plik z danymi")
+```
+
+
+
+```{r, echo = FALSE}
+
+modR <- lm(GPA~HSM+HSS+HSE, file2)
+modF <- lm(GPA~HSM+HSS+HSE+SATM+SATV, file2)
+
+
+Y <- file2$GPA
+Y_pred_R <- predict(modR)
+SSE_R <- sum((Y - Y_pred_R)^2)
+#SSE_R <- sum(modR$residuals^2)
+
+Y_pred_F <- predict(modF)
+SSE_F <- sum((Y - Y_pred_F)^2)
+#SSE_F <-  sum(modF$residuals^2)
+  
+dfE_R <- n - 4
+dfE_F <- n - 6
+MSE_F <- SSE_F / dfE_F
+
+teor_F <- ((SSE_R - SSE_F)/2)/MSE_F
+p_value <- 1 - pf(teor_F, df1 = 2, df2 = dfE_F)
+
+
+
+# teor_F_stat <- ((SST - SSE) / k) / (SSE / (n - k - 1))
+# SSE = sum(((file$GPA) - Y_hat_a)^2)
+# SST = sum(((file$GPA) - mean(file$Satisfaction))^2)
+
+
+#anova(modR,modF)
+r2_F <- anova(modR,modF)$`F`[2]
+r2_p_value <-anova(modR,modF)$`Pr(>F)`[2]
+
+qf <- qf(1-0.05, df1 = 2, df2 = dfE_F)
+```
+
+Różnica między statystykami $SSE$ dla dwóch modeli. Dla modelu z $HSM$, $HSS$, $HSE$ statytystyka $SSE(R) =$ `r round(SSE_R,2)`, a dla drugiego modelu $SSE(F) =$ `r round(SSE_F,2)`. 
+
+Różnica $SSE(R) - SSE(F) =$ `r round(SSE_R,2)` $-$ `r round(SSE_F,2)` $=$ `r round(SSE_R-SSE_F,2)`.
+
+Konstrukcja statystyki $F= \frac{SSE(R) - SSE(F) / df(R) -df(F)}{MSE(F)} =$ `r round(teor_F,4)`.
+
+
+$H_0: \beta_{4} = \beta_{5} = 0$
+
+$H_1:$ przyanjmniej dla jednej z $\beta_{4}$ , $\beta_{5}$  $\neq$ $0$
+
+Statystyka $F$ obliczona za pomocą funkcji $anova$: $F=$ `r round(r2_F,4)`.
+
+Liczba stopni swobody: $df_1= 2$, $df_2= dfE(F) =$ `r round(dfE_F,2)`.
+
+P-wartość: `r round(r2_p_value,2)`.
+
+Wnioski: Jeśli statystyka $F > F^{\ast}$ to odrzucamy $H_0$. Natomiast  $F =$ `r round(r2_F,4)` $<$ $F^{\ast} =$ `r round(qf,2)` i p-wartość `r round(r2_p_value,2)` $>$ $0.05$, to znaczy, że nie możemy odrzucić $H_0$. Zmienne $SATM$ i $SATV$ mogą być nieistotne przy opisie $GPA$ studentów. Jednkaże wynik jest niekonkluzywny, więc nie mamy takiej pewności. 
+
+## zad 5a
+
+
+```{r, echo = FALSE}
+model <- lm(GPA~SATM+SATV+HSM+HSE+HSS, file2)
+
+#sumy typu I
+a1 <- anova(model)
+ss1 <- round(a1$`Sum Sq`[1:5],4)
+
+#sumy typu II
+a2 <- Anova(model)
+ss2 <- round(a2$`Sum Sq`[1:5],4)
+#tabela
+
+tabelka <- matrix(c(ss1, ss2), byrow = FALSE, ncol = 2, nrow = 5)  
+row.names(tabelka) <- c("SATM", "SATV", "HSM", "HSE", "HSS")
+colnames(tabelka) <- c("Sumy kwadratów typu I", "Sumy kwadratów typu II")
+
+knitr::kable(tabelka) 
+```
+   
+Wnioski: 
+
+Zmienna $HSM$ ma dużą wartość zarówno dla sum typu $I$, jak i $II$, co świadczy o tym, że w dużym stopniu wyjaśnia zmienność w modelu zarówno przed jak i po uwzględnieniu innych zmiennych modelu.
+
+Zmienna $SATM$ ma dużą wartość sumy typu $I$, ale małą wartość sumy typu $II$. Możemy na tej podstawie wywnioskować, że $SATM$ na początku jest ważna dla modelu, ale po uwzględnieniu innych zmiennych jej wpływ maleje.
+
+Zmienna $HSE$ ma średni wkład w wyjaśnienie zmienności modelu, a po uwzględnieniu wszystkich zmiennych jej wpływ nieco maleje.
+
+Zmienna $HSS$ ma niewielki wpływ na model w przypadku obu sum, a zmienna $SATV$ w znikomym stopniu wyjaśnia zmienność modelu. 
+
+Podumowując największy wpływ na zmiennosć modelu ma zmienna $HSM$, nastepnie zmienne $SATM$ i $HSE$. Zmienne $HSS$ i $SATV$ mają najmniejszy wpływ.
+
+
+
+
+
+## zad 5b
+
+Zweryfikujemy teraz, że suma kwadratów typu $I$ dla zmiennej $HSM$ jest równa różnicy $SSM$ dla modelu opisującego $GPA$ za pomocą $SATM$, $SATV$ oraz $HSM$ (model $1$) oraz $SSM$ dla modelu opisującego $GPA$ za pomocą $SATM$ oraz $SATV$ (model $2$).
+
+
+```{r, echo = FALSE}
+
+ss1_HSM <- tabelka[3,1]
+
+model1 <- lm(GPA~SATM+SATV+HSM, file2)
+model2 <- lm(GPA~SATM+SATV, file2)
+
+HSM <- sum(anova(model1)$`Sum Sq`[1:3]) - sum(anova(model2)$`Sum Sq`[1:2])
+```
+
+Wniosek: Suma $I$ typu dla zmiennej $HSM$ wynosi `r round(ss1_HSM,4)`, a różnica statystyk, z którą porównujemy tą sumę jest równa `r round(HSM,4)`, co dowodzi temu, że obie wartości są sobie równe. Dzieje się tak, dlatego, że zachodzi wzór: 
+
+$$SSM(X_3) = SSM(X_3 | X_1, X_2) = SSM(X_1, X_2, X_3) - SSM(X_1,X_2) = model_1 - model_2$$
+
+## zad 5c
+
+$$SSM_2(X_p) = SSM_2(X_p | X_1, X_2, \ldots, X_{p-1}, X_{p+1}, \ldots X_k)$$
+$$\text{ gdy p to ostatnia zmienna to } = SSM_2(X_p | X_1, X_2, \ldots, X_{p-1}) = SSM_1(X_p | X_1, X_2, \ldots, X_{p-1})$$
+
+$SSM_{x}$, gdzie $x \in  \{ 1,2 \}$ to suma odpowiednio $I$ lub $II$ typu.
+
+Wnioski: Sumy typu $I$ i sumy typu $II$ są sobie równe zawsze dla ostatniego predyktora, ponieważ sumy typu $I$, biorą predyktory po kolei o $1$ więcej, a sumy typu $II$ wszystkie pozostałe, to dla ostatniego prdyktora otrzymujmey zawsze taką samą sumę. 
+
+
+\newpage
+
+## zad 6
+
+Wygenerowano nową zmienną $SAT$ jako sumę dwóćh testów $SATM$ i $SATV$.
+
+```{r, echo = FALSE}
+
+file3 <- file2
+file3$SAT <- file3$SATM + file3$SATV
+model_SAT <- lm(GPA~SATM+SATV+SAT, file3)
+# summary(model_SAT)
+```
+
+Wnioski: W wyniku nie uzyskaliśmy nic sensownego, gdyż model nie był w stanie wyznaczyć współczynnika $\hat{\beta_3}$. Jest to spowodowane tym, że macierz planu $\small \mathbb{X}$ jest singularna, czyli nie istnieje jej odwrotność. 
+
+Ponieważ $\hat{\beta} = (\mathbb{X}'\mathbb{X})^{-1}\mathbb{X}'Y$, stąd nie jesteśmy w stanie jej wyznaczyć. Singularność macierzy $\mathbb{X}$ wynika z tego, że wśród jej kolumn występuje kombinacja liniowa innych kolumn. Jest nią oczywiście ostatnia kolumna ze zmienną $SAT$, która jest równa sumie dwóch wcześniejszych kolumn macierzy $\mathbb{X}$. 
+
+
+\newpage
+
+## zad 7a
+
+
+```{r, fig.width = 7, fig.height=6, echo = FALSE}
+model_7 <- lm(GPA~HSM+HSS+HSE+SATM+SATV+SEX, file2)
+avPlots(model_7)
+```
+
+Partial regression plots to wykresy, które pokazują jaki wpływ ma dodanie nowej zmiennej objaśniającej $\tilde{X_i}$ do modelu, który ma już inne zmienne niezależne. Opisuje relacje $X_i$ vs $Y$ uwzgledniając jaki wpływ na model mają pozostałe $X-y$.
+
+
+Informacje jakie przekazują wykresy: 
+
+$\bullet$ jeśli wykres $e^{X_i}$ vs $e^Y$ nie ma jakiejś konkretnej struktury to daj enam informacje, że zmienna $X_i$ nie wnosi do modelu istotnejt informacji, ponad to co objasniały pozostałę $X-y$
+
+$\bullet$ jesli wykres ma struktruę liniową to (współczynnik kierunkowy $\neq 0$) to zmienna wnosi dodatkową informację do modelu 
+
+$\bullet$ dodatkowo możemy wykrywać odstępstwa od założen modelu np. brak liniwoej relacji, obserwacje odstające, brak stałości wariancji itp.
+
+Wykresy posiadają posiadają obserwacje odstajace, które są zaznaczone na wykresach. Poza tym mozemy zauważyć, że zmienna $HSM$ ma strukturę liniową o niezerowym współczynniku, co sugeruje, że wnosi dodatkową informację o modelu. 
+
+
+
+## zad 7b
+
+```{r, echo = FALSE}
+# Residua studentyzowane wew
+resid_wew <- rstandard(model_7)
+
+# Residua studentyzowane zew
+resid_zew <- rstudent(model_7)
+
+# wykres wew
+odstajace_wew <- which(abs(resid_wew) > 2)
+
+qqnorm(resid_wew, main="QQ-plot residuów studentyzowanych wewnętrznie")
+qqline(resid_wew, col="blue")
+
+points(qnorm((rank(resid_wew) - 0.5) / length(resid_wew))[odstajace_wew], resid_wew[odstajace_wew], col="red", pch=19)
+
+# wykres zew
+odstajace_zew <- which(abs(resid_zew) > 3)
+qqnorm(resid_zew, main="QQ-plot residuów studentyzowanych zewnętrznie")
+qqline(resid_zew, col="blue")
+
+points(qnorm((rank(resid_zew) - 0.5) / length(resid_zew))[odstajace_zew], resid_zew[odstajace_zew], col="red", pch=19)
+
+```
+\newpage
+
+Residua studentyzowane są postaci:
+
+$$\tilde{e_i} = \frac{Y_i - \hat{Y_i}}{\sqrt{\hat{\sigma}^2 (1- H_{ii})}}$$
+
+Residua studentyzwane wewnętrzenie to takie, gdzie model konstruownay jest przy użyci wsystkich obserwacji. $\tilde{e_i}$ studentyzowane wewnętrznie nie ma rozkładu Studenta
+
+$$\tilde{e_i} =  \frac{e_i /{\sqrt{\hat{\sigma}^2 (1- H_{ii})}}}{ \sqrt{s^2 / {\sigma}^2}}$$
+
+
+Residua studentyzwane zewnętrzenie to takie, gdzie model konstruowany jest z pominięicem w dnaych wartości $Y_i$ oraz wiesza macierzy planu stowarzyszonego z $Y_i$. Wyłączona zostaje $i-ta$ obserwacja. $\tilde{e_i}$ studentyzowane zewnętrznie mma rozkładu Studenta
+
+$$\tilde{e_i} = \frac{Y_i - \hat{Y_{(i)i}}}{\sqrt{\hat{s_{i}}^2 (1- H_{(i)ii})}}$$
+
+Różnica między nimi polega sposobie konstrukcji oraz tym, czy zmienna  $\tilde{e_i}$ ma rozkład Studneta. 
+
+
+Residua studentyzwane zewnętrzenie i wewnętrznie mogą informaować między innymi o obserwacjach odstającyh, obserwacjach znaczących i odstępstawach od założeń dostyczących błędów $\varepsilon$.
+
+Wartości odstające, które wystepuja na wykresie są zaznaczone w kolorze czerwonym. 
+
+
+\newpage
+
+## zad 7c
+
+```{r, echo = FALSE}
+D_dffits <- dffits(model_7)
+p <- 6
+n <- nrow(file2)
+
+x <- which(abs(D_dffits)>2*sqrt(p/n))
+
+matplot(D_dffits, 
+        pch = 20, 
+        col=rgb(0.30, 0.40, 0.70, 0.55),
+        main = "Wykres DFFITS", 
+        ylab = "DFFITS", 
+        xlab = "Indeks obserwacji")
+points(x, D_dffits[x], col = "red", pch = 20)
+```
+
+Miara $DFFITS$ dla $i-tej$ obserwacji służy do badania wpływu obserwacji $Y_i$ na predykcję $\hat{Y_i}$. 
+
+$$DFFITS_i = \frac{ \hat{Y}_i - \hat{Y_{(i)i}}}{\sqrt{s^2_{(i)} H_{ii}}}$$
+
+Zawiera infromacje o tym, czy obserwacja $Y_i$ ma znaczący wpływ na predykcję, jest tak gdy $\hat{Y_i}$ i $\hat{Y_{(i)i}}$ (bez $i-tej$ obserwacji) znacząco się różnią. Za taką znacząco róznicę uznaje się $|DFFITS_i| > 2 \sqrt{p/n}$. Gdzie $p$ to liczba regresorów, a $n$ liczba obserwacji. 
+
+Możemy wywnioskować, że część obserwacjii (zaznaczonych na czerwono) ma dużą miarę $DFFITS$ i wymaga dokładniejszego zbadania.
+
+
+
+## zad 7d
+
+```{r, echo = FALSE}
+
+D_Cooks <- cooks.distance(model_7)
+x <- which(abs(D_Cooks)>1) #0 obserwacji podejrzanych
+
+matplot(D_Cooks, 
+        pch = 20, 
+        col=rgb(0.30, 0.40, 0.70, 0.35),
+        main = "Wykres odległości Cook'a", 
+        ylab = "Odległość Cook'a", 
+        xlab = "Indeks obserwacji")
+
+```
+
+Odległość Cook'a dla $i-tej$ obserwacji służy do badania wpływu obserwacji $Y_i$ na cały wektor predykcji $\hat{Y}$.
+
+$$D_i = \sum_{j=1}^{n} \frac{(\hat{Y}_j - \hat{Y}_{(i)j})^2} {s^2p}$$
+
+Zawiera infromacje o tym, czy obserwacja $Y_i$ ma znaczący wpływ na predykcję, jest tak gdy $\hat{Y}$ i $\hat{Y_{i}}$ (bez $i-tej$ obserwacji) znacząco się różnią. Za taką znacząco róznicę uznaje się $|D_i| > 1$. 
+
+Możemy wywnioskować, że predykcje $Y$ przyjmują podobne wartości i żadna z obserwacji, nie wykazuje większego wpływu na predykcję. Jest to zgodne z naszymi oczekiwaniami. 
+
+## zad 7e
+
+```{r, echo = FALSE}
+
+D_dfbeta=dfbeta(model_7)
+
+n <- nrow(file2)
+x <- which(abs(D_dfbeta)>2/sqrt(n)) #0 obs odstajacych
+
+matplot(D_dfbeta, 
+        pch = 20, 
+        col=rgb(0.30, 0.40, 0.70, 0.35),
+        main = "Wykres DFBETA", 
+        ylab = "DFBETA", 
+        xlab = "Indeks obserwacji")
+
+```
+
+Miara DFBETA dla $i-tej$ obserwacji służy do badania wpływu obserwacji $Y_i$ na estymację parametru $\beta_k$. 
+
+$$DFBETA_k = \frac{\hat{\beta}_k - \hat{\beta}_{(i)k}}{s_{(i)} (\hat{\beta}_{(i)k})}$$
+
+Zawiera infromacje o tym, czy $i-ta$ obserwacja ma znaczący wpływ na estymatory $\hat{\beta}_k$, $\hat{\beta}_{(i)k}$.
+
+Możemy wywnioskować, że estymatory $\hat{\beta}_k$, $\hat{\beta}_{(i)k}$ przyjmują podobne wartości i żadna z obserwacji, nie wykazuje większego wpływu. Jest to zgodne z naszymi oczekiwaniami. 
+
+\newpage
+
+## zad 7f
+
+```{r, echo = FALSE}
+
+v=vif(model_7)
+
+tolerance_table <- matrix(round(1/v, 4), ncol  = 6)
+colnames(tolerance_table) <- c("HSM", "HSS", "HSE", "SATM", "SATV", "SEX" )
+
+
+knitr::kable(tolerance_table, caption = "Wyniki miary Tolerancja")
+```
+
+```{r, echo = FALSE, warning=FALSE}
+v2 = vif(model_SAT)
+
+tolerance_table_6<- matrix(round(1/v2, 4), ncol  = 3)
+
+colnames(tolerance_table_6) <- c("SATM", "SATV", "SAT") 
+
+knitr::kable(tolerance_table_6, caption = "Wyniki miary Tolerancja dla modelu z zadnia 6")
+```
+
+
+Miara VIF służy do badania wielkości zjawiska multikolinearności. Dla $k-tej$ zmiennej obajśniajacej miara ta bada w jakim stopniu zmienna $X_k$ objaśniana jest za pomocą pozostląych zmiennych objaśniających $X_1, \ldots, X_{k-1}, X_{k+1}, \ldots X_{p-1}$.
+
+Jeśli VIF ma dużą wartośc to przekazuje infromacje o tym, że istnieje bardzo silna korelacja pomiędzy $X_k$ i pewną kombinacją liniową pozostałych zmiennych objaśniających. Przyjmuje sie, że gdy $VIF_k > 10$ to istnieje duży problem w związku z występowaniem zjawiska multikolinearności.
+
+Miara Tolerancja jest stosowana zamiennie z miarą VIF i jest to jej odwrtoność.
+
+$$Tol_k = 1/VIF_k$$
+W przypadku tej miary gdy $Tol_k < 0.1$ wskazuje to na problemy z multikolinearnością. 
+
+Wartośc stastytyki dla modelu w przypadku każdej zmiennej jest większa nież $0.1$, więc nie spodziewamy się by model miał problem z multikolinearnością. 
+
+Wartość tej statystyki dla modelu z zadani $6$ wynosi $0$ dla każdej zmiennej objaśniającej, co wskazuje na to, że istnieje silna korelacja pomiędzy zmiennymi i kombinacją liniową pozostłych zmiennych objaśniających. 
+
+Jest to zgodne z oczekiwaniami, ponieważ w zadaniu $6$ mieliśmy doczynienia ze zjawiskiem mulitikolinearności tworząc dodatkową zmienną $SAT$, tak by była kombinacją liniową $SATM$ i $SATV$. 
+
+
+\newpage
+
+## zad 7g
+
+```{r, echo = FALSE}
+# Regresja liniowa
+model <- lm(GPA ~ HSM + HSS + HSE + SATM + SATV + SEX, data = file2)
+
+# Wybór najlepszego modelu
+allLM = regsubsets(GPA ~ ., data = file2[, -1], nbest = 3)
+all_s = summary(allLM)
+
+# Poprawiona regresja liniowa
+LinMod = lm(GPA ~ ., data = file2[, -1]) 
+
+# Tworzenie tabeli wyników
+x <- cbind(
+  round(all_s$bic, 4),
+  round(all_s$cp, 4),
+  round(all_s$adjr2, 4),
+  all_s$which
+)
+
+# Nazwy kolumn
+colnames(x) <- c("BIC", "Cp Mallows'a", "R_adj", "Intercept", "HSM", "HSS", "HSE", "SATM", "SATV", "SEX")
+
+
+# Wyświetlenie wyników w formie tabeli
+knitr::kable(x, caption = "Dane do wyboru najlepszego modelu - kryterium BIC, Cp, R_adj")
+
+```
+
+
+Kryterium infromacyjne AIC i BIC są modyfikatorami metody największej wiarogodności, mierzą 
+jak bardzo model jest dopasowany do danych uwzględniając złożoność modelu. Im mniejsza wartość staytyki $AIC$, $BIC$ tym model jest lepiej dopasowany.  
+
+$$AIC(\mathbb{\tilde{X}}) = n\log \left( \frac{SSE(\tilde{\mathbb{X}})}{n} \right) + 2\tilde{p}$$
+
+$$BIC = nlog \left( \frac{SSE(\tilde{\mathbb{X}})}{n} \right) + \log(n)\tilde{p}$$
+
+Kyterium Cp Mallows'a jest modyfikatorem metody najmniejszych kwadratów i służy do oceny dopasowania modelu do danych, porównując dopasowanie danego modelu do modelu pełnego. 
+
+$$C_{\tilde{p}} ( \tilde{\mathbb{X}}) = \frac{SSE(\tilde{\mathbb{X}})}{MSE(F)} - n + 2 \tilde{p}$$
+
+Model ma dobre własności gdy $C_{\tilde{p}} < \tilde{p}$ lub $2\tilde{p}$ lub ma najmniejszą wartość.
+
+Wnioski: Najlepszym modelem przy użyciu kryterium BIC,  Cp Mallows'a i $R^2(adj)$ jest model z interceptem, HSM i HSE. Ma najmniejszą wartość $BIC$, dobrą wartość dla kryterium $Cp$ i jedną z większy dla $R^2(Adj)$.  
+
+
+
+
