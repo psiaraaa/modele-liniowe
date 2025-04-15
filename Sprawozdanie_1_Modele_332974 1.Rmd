@@ -1,0 +1,412 @@
+---
+title: "Sprawozdanie 1"
+author: "Katarzyna Botulińska"
+date: "2024-10-20"
+output:
+  pdf_document:
+    fig_caption: true
+  html_document:
+    df_print: paged
+  word_document: default
+lang: "pl-PL"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Wielowymiarowy rozkład normalny i rozkład Cholskiego
+
+
+\tableofcontents
+
+```{r echo=FALSE}
+options(scipen=999)
+```
+
+\newpage
+
+
+
+## zad 1
+
+Na wykresie przedstawionych jest $1000$ wektorów losowych z rozkładu dwuwymiarowego normalnego $N(0, I_{2 \times 2})$.
+
+```{r fig.width = 8, fig.height = 7, echo = FALSE}
+
+set.seed(58)
+vec <- rnorm(2000,0,1)
+v <- matrix(vec,nrow = 1000)
+plot(v, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     main = "Wykres wektorów losowych z rozkładu dwuwymiarowego normalnego",
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     las = 1,
+     cex.lab = 1.5, cex.axis = 1.5, cex.main = 1)
+abline(h = 0, v = 0, col = "blue")
+
+```
+
+Wnioski: Wektory losowe w rozkładzie dwuwymiarowym normalnym układają się w kształt elipsy lub okręgu. Zależy to od tego, czy zmienne są skorelowane. Jeśli zmienne są nieskorelowane macierz kowariancji $\Sigma$ jest diagonalna, czyli chmura punktów ułada się w kształt okręgu, tak jak na wykresie powyżej. Oznacza to, że mając informacje o jednej zmiennej nie możmey przewidzieć zachowania drugiej. 
+
+\newpage
+
+
+
+
+
+## zad 2
+
+Poniżej wyznaczono przekształcenia liniowe chmury punktów uzyskanej w zadaniu $1$. W chmurę punktów z rozkładu $N(\mu, \Sigma)$, gdzie $\mu =  \left( \begin{array}{c} 4 \\ 2 \end{array} \right)$, $\Sigma =  \left( \begin{array}{cc} 1 & p \\ p & 1 \end{array} \right)$, $p \in \{0.5, -0.5, 0.9, -0.9\}$.
+
+
+```{r fig.width = 20, fig.height = 20, echo=FALSE}
+
+#Rysujmey 4 wykresy w zależności od p ( 4 przypadki)
+p <- c(0.5, -0.5, 0.9, -0.9)
+b <- c(4,2)
+
+
+sigma1 <- matrix(c(1, p[1], p[1], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a1 <- t(chol(sigma1))
+y1 <- a1%*%t(v) + replicate(1000, b)
+
+sigma2 <- matrix(c(1, p[2], p[2], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a2 <- t(chol(sigma2))
+y2 <- a2%*%t(v) + replicate(1000, b)
+
+sigma3 <- matrix(c(1, p[3], p[3], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a3 <- t(chol(sigma3))
+y3 <- a3%*%t(v) + replicate(1000, b)
+
+sigma4 <- matrix(c(1, p[4], p[4], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a4 <- t(chol(sigma4))
+y4 <- a4%*%t(v) + replicate(1000, b)
+
+
+#eigen(sigma1)
+#eigen(sigma2)
+#eigen(sigma3)
+#eigen(sigma4)
+
+
+par(mfrow = c(2, 2))
+
+plot(t(y1),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[1]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue") 
+
+
+
+plot(t(y2),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[2]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue") 
+
+plot(t(y3),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[3]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue") 
+
+plot(t(y4),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[4]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue") 
+```
+
+Wnioski: Zmienne są skorelowane ($p \neq 0$), czyli chmura punktów ułada się w kształt elipsy. W zależności od wartości tej korelacji, czyli wielkości zmiennej $p$ elipsa przyjmuje nieco inny kształt. 
+
+Im $p$ jest bliższe $0$ (zmienne są mniej skorelowane) tym elipsa bardziej przypomina okrąg. Natomiast gdy $p$ jest bliższe $\pm 1$ tym bardziej chmura układa się w rozciągniętą elipsę. 
+
+Dodatkowo jeśli $p < 0$ - kowariancja jest ujemna, czyli wraz ze wzrostem jednej zmiennej, druga zmienna maleje (punkty skupiają sie wokół przekątnej malejącej). Natomiast gdy $p >0$ - kowariancja jesst dodatnia, to znaczy, że gdy jedna zmienna rośnie to druga także (punkty skupiają się wokół prostej rosnącej).
+\newpage
+
+Aby jeszcze lepiej zobrazować te zależności, dodatkowo wykonałam też wykresy dla $p \in \{0.01, -0.01, 0.99, -0.99 \}$.
+
+```{r fig.width = 20, fig.height = 20, echo=FALSE}
+
+#Rysujmey 4 wykresy w zależności od p ( 4 przypadki)
+p <- c(0.01, -0.01, 0.99, -0.99)
+b <- c(4,2)
+
+
+sigma1 <- matrix(c(1, p[1], p[1], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a1 <- t(chol(sigma1))
+y1 <- a1%*%t(v) + replicate(1000, b)
+
+sigma2 <- matrix(c(1, p[2], p[2], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a2 <- t(chol(sigma2))
+y2 <- a2%*%t(v) + replicate(1000, b)
+
+sigma3 <- matrix(c(1, p[3], p[3], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a3 <- t(chol(sigma3))
+y3 <- a3%*%t(v) + replicate(1000, b)
+
+sigma4 <- matrix(c(1, p[4], p[4], 1), byrow = TRUE, nrow = 2, ncol = 2)
+a4 <- t(chol(sigma4))
+y4 <- a4%*%t(v) + replicate(1000, b)
+
+
+#eigen(sigma1)
+#eigen(sigma2)
+#eigen(sigma3)
+#eigen(sigma4)
+
+
+par(mfrow = c(2, 2))
+
+plot(t(y1),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[1]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2.5, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue") 
+
+
+
+plot(t(y2),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[2]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2.5, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue") 
+
+plot(t(y3),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[3]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2.5, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue") 
+
+plot(t(y4),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x",
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.35),
+     main =  paste0("Wykres chmury punktów dla p = ", p[4]),
+     las = 1,
+     cex.lab = 2.5, cex.axis = 2.5, cex.main = 3)
+abline(a = -2, b = 1, col="blue") 
+abline(a = 6, b = -1, col="blue")
+```
+
+
+\newpage
+
+## zad 3
+
+Poniżej wyznaczono przekształcenia liniowe chmury punktów uzyskanej w zadaniu $1$. W chmurę punktów z rozkładu $N(\mu, \Sigma)$, gdzie $\mu =  \left( \begin{array}{c} 4 \\ 2 \end{array} \right)$, $\Sigma =  \left( \begin{array}{cc} \sigma^2 & 0  \\ 0 & 1 \end{array} \right)$, 
+$\sigma \in \{3,4\}$.
+
+```{r fig.width = 16, fig.height = 18, echo=FALSE}
+
+#Rysujmey 2 wykresy w zależności od małej sigmy (wariancji)
+sigma_small <- c(9,16)
+b <- c(4,2)
+
+
+sigma1 <- matrix( c(sigma_small[1], 0, 0, 1), byrow = TRUE, nrow = 2, ncol = 2)
+a1 <- t(chol(sigma1))
+y1 <- a1%*%t(v) + replicate(1000, b)
+
+
+sigma2 <- matrix(c(sigma_small[2], 0, 0, 1), byrow = TRUE, nrow = 2, ncol = 2)
+a2 <- t(chol(sigma2))
+y2 <- a2%*%t(v) + replicate(1000, b)
+
+par(mfrow = c(2, 1))
+
+plot(t(y1),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y",
+     col = rgb(0.30, 0.40, 0.70, 0.30),
+     main =  paste0("Wykres sigma = ", 3),
+     las = 1,
+     cex.lab = 1.5, cex.axis = 1.5, cex.main = 2)
+
+plot(t(y2),
+     asp = 1, 
+     pch = 20, 
+     xlab = "x", 
+     ylab = "y", 
+     col = rgb(0.30, 0.40, 0.70, 0.30),
+     main =  paste0("Wykres sigma = ", 4),
+     las = 1,
+     cex.lab = 1.5, cex.axis = 1.5, cex.main = 2)
+
+```
+Wnioski: Wariancja $\sigma^2$ mówi nam o tym jak bardzo dane są rozproszone względem średniej. Zauważyć można, że im większa $\sigma^2$, która odpowiada za wariancję pierwszego wymiaru, tym dane są bardziej rozrzucone wzdłuż osi $OX$. W związku z tym wraz ze wzrostem parametru kształt chmury coraz bardziej rozciąga się na boki.  
+
+\newpage
+
+
+
+## zad 4
+
+```{r, echo=FALSE}
+#a 
+vec <- rnorm(100000,0,1)
+x <- matrix(vec,nrow = 1000, byrow =TRUE)
+#dim(x)
+# Wnioski: Wygenerowano $1000$ wektorów losowych długości $100$ z r. wielowymiarowego normlanego. 
+```
+
+
+```{r, echo=FALSE}
+#b
+sigma <- matrix(0.9, nrow=100, ncol=100)
+diag(sigma) <- 1
+
+A <- chol(sigma) #górnotrójkątna
+x_hat <- x%*%(A)
+
+# dim(x_hat)
+# x_hat ~N(0, sigma)
+# Wnioski: Macierz $A$ wyznaczamy za pomoca rozkładu Cholskiego, co pozwala wyznaczyć nam macierz przekształcenia $\tilde{X}$.
+```
+
+
+Poniżej znajdują się histogramy weryfikujące wyniki $\tilde{X}$.
+
+```{r, fig.width = 16, fig.height = 18, echo=FALSE}
+#c
+
+#mean(x_hat) -> 0
+#var(x_hat) -> 1
+#cov(x_hat) -> 0.9
+
+ 
+var_x_hat <- apply(x_hat, 2, var)
+mean_x_hat <- apply(x_hat, 2, mean)
+cov_x_hat <- cov(x_hat * lower.tri(x_hat, diag = FALSE))
+
+par(mfrow = c(3, 1))
+
+hist(mean_x_hat,
+     breaks = 30,
+     xlab = "x", 
+     ylab = "y",
+     col = "lightblue1",
+     freq = FALSE,
+     main = "Histogram średnich współrzędnych",
+     las = 1,
+     cex.lab = 2, cex.axis = 2, cex.main = 2.5)
+curve(dnorm(x, mean(mean_x_hat),sd(mean_x_hat)), add =TRUE, col = "blue")
+
+hist(var_x_hat,
+     breaks = 25,
+     xlab = "x", 
+     ylab = "y",
+     col = "lightblue1",
+     freq = FALSE,
+     main = "Histogram próbkowych wariancji współrzędnych",
+     las = 1,
+     cex.lab = 2, cex.axis = 2, cex.main = 2.5)
+curve(dnorm(x, mean(var_x_hat),sd(var_x_hat)), add = TRUE, col ="blue" )
+
+hist(cov_x_hat,
+     breaks = 30,
+     xlab = "x", 
+     ylab = "y",
+     freq = FALSE,
+     col = "lightblue1",
+     main = "Histogram próbkowych kowariancji między różnymi współrzędnymi",
+     las = 1,
+     cex.lab = 2, cex.axis = 2, cex.main = 2.5)
+curve(dnorm(x, mean(cov_x_hat),sd(cov_x_hat)), add =TRUE, col="blue")
+```
+Wnioski:
+Rysując histogram średnich i wariancji współrzędnych oraz kowarancji między różnymi współrzędnymi, można zauważyć, że wyniki są poprawne tzn. histogram średnich, rzeczywiście skupia się blisko $0$, histogram wariancji znajduje się wokół $1$, a kowariancji koncentruje się na $0.9$. Z tego wynika, że przekształcenie zostało poprawnie zaimplementowane. 
+
+
+
+```{r, echo=FALSE}
+#d własna funkcja dla r. Cholskiego
+
+cholski <- function(Sigma) {
+  
+  if (ncol(Sigma) != nrow(Sigma))
+    stop("Macierz nie jest kwadratowa")
+  
+  A <- matrix(0, nrow(Sigma), nrow(Sigma))
+  
+  for (w in 1:nrow(Sigma)) {
+    for (k in w:nrow(Sigma)) {
+      if (k == w) {
+          A[w,k] <- sqrt(Sigma[w,w] - sum(A[1:(k-1), w]^2))
+          }
+      else {
+          A[w,k] <- (Sigma[w,k] - sum(A[k, 1:(w-1)] * A[w, 1:(w-1)])) / (A[w,w])
+        }
+    }
+  }
+  
+  return(A)
+}
+
+# testy
+
+# chol(sigma1)
+# cholski(sigma1)
+
+# chol(sigma3)
+# cholski(sigma3)
+
+# Wnioski: Testy wykazały, że funkcja chol(), daje taki sam wynik jak napisana przeze mnie funkcja cholski().
+```
+
+
+
+
+
+
+
